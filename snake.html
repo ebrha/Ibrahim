@@ -1,0 +1,154 @@
+<!DOCTYPE html>
+<html lang="sv">
+<head>
+<meta charset="UTF-8">
+<title>Snake</title>
+<style>
+  body {
+    background: #111;
+    color: #fff;
+    font-family: sans-serif;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    margin: 0;
+    padding: 20px;
+  }
+  h1 { margin: 0 0 10px; }
+  #score { margin-bottom: 10px; font-size: 18px; }
+  canvas {
+    background: #222;
+    border: 2px solid #555;
+  }
+  #message {
+    margin-top: 10px;
+    font-size: 16px;
+    color: #aaa;
+  }
+</style>
+</head>
+<body>
+  <h1>Snake</h1>
+  <div id="score">Poäng: 0</div>
+  <canvas id="board" width="400" height="400"></canvas>
+  <div id="message">Använd piltangenterna för att styra. Tryck mellanslag för att starta om.</div>
+
+<script>
+const canvas = document.getElementById('board');
+const ctx = canvas.getContext('2d');
+const scoreEl = document.getElementById('score');
+const messageEl = document.getElementById('message');
+
+const gridSize = 20;
+const tileCount = canvas.width / gridSize;
+
+let snake, direction, nextDirection, food, score, gameOver, loopId;
+
+function init() {
+  snake = [{ x: 10, y: 10 }];
+  direction = { x: 0, y: 0 };
+  nextDirection = { x: 0, y: 0 };
+  score = 0;
+  gameOver = false;
+  placeFood();
+  updateScore();
+  messageEl.textContent = 'Använd piltangenterna för att styra. Tryck mellanslag för att starta om.';
+  if (loopId) clearInterval(loopId);
+  loopId = setInterval(tick, 120);
+}
+
+function placeFood() {
+  do {
+    food = {
+      x: Math.floor(Math.random() * tileCount),
+      y: Math.floor(Math.random() * tileCount)
+    };
+  } while (snake.some(s => s.x === food.x && s.y === food.y));
+}
+
+function updateScore() {
+  scoreEl.textContent = 'Poäng: ' + score;
+}
+
+function tick() {
+  if (gameOver) return;
+
+  direction = nextDirection;
+  if (direction.x === 0 && direction.y === 0) {
+    draw();
+    return;
+  }
+
+  const head = {
+    x: snake[0].x + direction.x,
+    y: snake[0].y + direction.y
+  };
+
+  // Krock med vägg
+  if (head.x < 0 || head.x >= tileCount || head.y < 0 || head.y >= tileCount) {
+    return endGame();
+  }
+
+  // Krock med sig själv
+  if (snake.some(s => s.x === head.x && s.y === head.y)) {
+    return endGame();
+  }
+
+  snake.unshift(head);
+
+  if (head.x === food.x && head.y === food.y) {
+    score++;
+    updateScore();
+    placeFood();
+  } else {
+    snake.pop();
+  }
+
+  draw();
+}
+
+function endGame() {
+  gameOver = true;
+  clearInterval(loopId);
+  messageEl.textContent = 'Game over! Poäng: ' + score + '. Tryck mellanslag för att spela igen.';
+}
+
+function draw() {
+  ctx.fillStyle = '#222';
+  ctx.fillRect(0, 0, canvas.width, canvas.height);
+
+  ctx.fillStyle = '#e63946';
+  ctx.fillRect(food.x * gridSize, food.y * gridSize, gridSize - 1, gridSize - 1);
+
+  ctx.fillStyle = '#4caf50';
+  snake.forEach((segment, i) => {
+    ctx.fillStyle = i === 0 ? '#8bc34a' : '#4caf50';
+    ctx.fillRect(segment.x * gridSize, segment.y * gridSize, gridSize - 1, gridSize - 1);
+  });
+}
+
+document.addEventListener('keydown', (e) => {
+  switch (e.key) {
+    case 'ArrowUp':
+      if (direction.y !== 1) nextDirection = { x: 0, y: -1 };
+      break;
+    case 'ArrowDown':
+      if (direction.y !== -1) nextDirection = { x: 0, y: 1 };
+      break;
+    case 'ArrowLeft':
+      if (direction.x !== 1) nextDirection = { x: -1, y: 0 };
+      break;
+    case 'ArrowRight':
+      if (direction.x !== -1) nextDirection = { x: 1, y: 0 };
+      break;
+    case ' ':
+      init();
+      break;
+  }
+});
+
+init();
+draw();
+</script>
+</body>
+</html>
