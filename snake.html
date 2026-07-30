@@ -2,153 +2,478 @@
 <html lang="sv">
 <head>
 <meta charset="UTF-8">
-<title>Snake</title>
+<title>Snake — handhållen LCD-konsol</title>
+<meta name="viewport" content="width=device-width, initial-scale=1">
 <style>
+  :root {
+    --paper: #e7e1d0;
+    --paper-grid: #d9d2bd;
+    --shell: #cfc6a9;
+    --shell-hi: #e2dabf;
+    --shell-lo: #a89d80;
+    --bezel: #1c1a15;
+    --lcd: #9dae74;
+    --lcd-lo: #8ea366;
+    --ink: #33401c;
+    --ink-soft: rgba(51, 64, 28, 0.28);
+    --led-off: #7a4038;
+    --led-on: #d1462f;
+    --text: #2a2620;
+    --text-muted: #6b6250;
+    --btn-face: #d8cfb2;
+    --btn-shadow: #8f8367;
+    --accent: #b3452e;
+  }
+
+  @media (prefers-color-scheme: dark) {
+    :root {
+      --paper: #17140f;
+      --paper-grid: #211d15;
+      --shell: #34301f;
+      --shell-hi: #433d27;
+      --shell-lo: #100e09;
+      --bezel: #0c0b08;
+      --text: #e9e2cd;
+      --text-muted: #a89a7c;
+      --btn-face: #3d3823;
+      --btn-shadow: #0e0c07;
+      --accent: #e0674a;
+    }
+  }
+
+  :root[data-theme="dark"] {
+    --paper: #17140f;
+    --paper-grid: #211d15;
+    --shell: #34301f;
+    --shell-hi: #433d27;
+    --shell-lo: #100e09;
+    --bezel: #0c0b08;
+    --text: #e9e2cd;
+    --text-muted: #a89a7c;
+    --btn-face: #3d3823;
+    --btn-shadow: #0e0c07;
+    --accent: #e0674a;
+  }
+
+  :root[data-theme="light"] {
+    --paper: #e7e1d0;
+    --paper-grid: #d9d2bd;
+    --shell: #cfc6a9;
+    --shell-hi: #e2dabf;
+    --shell-lo: #a89d80;
+    --bezel: #1c1a15;
+    --text: #2a2620;
+    --text-muted: #6b6250;
+    --btn-face: #d8cfb2;
+    --btn-shadow: #8f8367;
+    --accent: #b3452e;
+  }
+
+  * { box-sizing: border-box; }
+
+  html, body {
+    height: 100%;
+  }
+
   body {
-    background: #111;
-    color: #fff;
-    font-family: sans-serif;
+    margin: 0;
+    min-height: 100%;
+    background:
+      radial-gradient(circle at 1px 1px, var(--paper-grid) 1px, transparent 0) 0 0/22px 22px,
+      var(--paper);
+    color: var(--text);
+    font-family: system-ui, -apple-system, "Segoe UI", sans-serif;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    padding: 32px 16px;
+  }
+
+  .device {
+    width: min(100%, 400px);
+    background: linear-gradient(160deg, var(--shell-hi), var(--shell) 45%, var(--shell-lo));
+    border-radius: 28px;
+    padding: 22px 22px 26px;
+    box-shadow:
+      0 1px 0 var(--shell-hi) inset,
+      0 -6px 14px rgba(0, 0, 0, 0.18) inset,
+      0 18px 40px -18px rgba(0, 0, 0, 0.55);
+  }
+
+  .brand-row {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    padding: 2px 4px 14px;
+  }
+
+  .brand {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+  }
+
+  .led {
+    width: 9px;
+    height: 9px;
+    border-radius: 50%;
+    background: var(--led-off);
+    box-shadow: 0 0 0 2px rgba(0, 0, 0, 0.25) inset;
+    transition: background 0.15s ease, box-shadow 0.15s ease;
+  }
+
+  .led.on {
+    background: var(--led-on);
+    box-shadow: 0 0 8px 2px var(--led-on);
+  }
+
+  .wordmark {
+    font-family: ui-monospace, "SF Mono", "Cascadia Code", "Courier New", monospace;
+    font-weight: 700;
+    font-size: 18px;
+    letter-spacing: 0.14em;
+    color: var(--text);
+  }
+
+  .score {
+    font-family: ui-monospace, "SF Mono", "Cascadia Code", "Courier New", monospace;
+    font-size: 13px;
+    letter-spacing: 0.08em;
+    color: var(--text-muted);
+    font-variant-numeric: tabular-nums;
+  }
+
+  .score b {
+    color: var(--text);
+    font-size: 15px;
+  }
+
+  .screen-frame {
+    background: var(--bezel);
+    border-radius: 10px;
+    padding: 14px;
+    box-shadow:
+      0 2px 6px rgba(0, 0, 0, 0.4) inset,
+      0 1px 0 rgba(255, 255, 255, 0.05);
+  }
+
+  .screen-inner {
+    position: relative;
+    border-radius: 3px;
+    overflow: hidden;
+    background: var(--lcd);
+  }
+
+  .screen-inner::after {
+    content: "";
+    position: absolute;
+    inset: 0;
+    background: radial-gradient(ellipse at 30% 20%, rgba(255, 255, 255, 0.10), transparent 60%),
+                radial-gradient(ellipse at 50% 100%, rgba(0, 0, 0, 0.16), transparent 55%);
+    pointer-events: none;
+  }
+
+  canvas {
+    display: block;
+    width: 100%;
+    height: auto;
+    image-rendering: pixelated;
+    image-rendering: crisp-edges;
+  }
+
+  .status-line {
+    font-family: ui-monospace, "SF Mono", "Cascadia Code", "Courier New", monospace;
+    font-size: 11px;
+    letter-spacing: 0.06em;
+    color: var(--text-muted);
+    text-align: center;
+    padding: 12px 6px 2px;
+    min-height: 16px;
+  }
+
+  .controls {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    padding: 14px 6px 0;
+  }
+
+  .dpad {
+    display: grid;
+    grid-template-columns: repeat(3, 34px);
+    grid-template-rows: repeat(3, 34px);
+    gap: 3px;
+  }
+
+  .dpad button {
+    grid-column: 2;
+    grid-row: 2;
+  }
+  .dpad button[data-dir="up"]    { grid-column: 2; grid-row: 1; }
+  .dpad button[data-dir="left"]  { grid-column: 1; grid-row: 2; }
+  .dpad button[data-dir="right"] { grid-column: 3; grid-row: 2; }
+  .dpad button[data-dir="down"]  { grid-column: 2; grid-row: 3; }
+
+  button {
+    font-family: inherit;
+    border: none;
+    cursor: pointer;
+    background: var(--btn-face);
+    color: var(--text);
+    border-radius: 7px;
+    box-shadow:
+      0 2px 0 var(--btn-shadow),
+      0 1px 0 rgba(255, 255, 255, 0.15) inset;
+    -webkit-tap-highlight-color: transparent;
+    touch-action: manipulation;
+  }
+
+  button:active {
+    transform: translateY(1px);
+    box-shadow: 0 1px 0 var(--btn-shadow);
+  }
+
+  button:focus-visible {
+    outline: 2px solid var(--accent);
+    outline-offset: 2px;
+  }
+
+  .dpad button {
+    width: 34px;
+    height: 34px;
+    font-size: 13px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+  }
+
+  .side-controls {
     display: flex;
     flex-direction: column;
     align-items: center;
-    margin: 0;
-    padding: 20px;
+    gap: 8px;
   }
-  h1 { margin: 0 0 10px; }
-  #score { margin-bottom: 10px; font-size: 18px; }
-  canvas {
-    background: #222;
-    border: 2px solid #555;
+
+  .start-btn {
+    padding: 10px 18px;
+    font-size: 11px;
+    font-weight: 600;
+    letter-spacing: 0.12em;
+    text-transform: uppercase;
   }
-  #message {
-    margin-top: 10px;
-    font-size: 16px;
-    color: #aaa;
+
+  .caption {
+    font-size: 10px;
+    letter-spacing: 0.05em;
+    color: var(--text-muted);
+    text-align: center;
+    max-width: 90px;
+  }
+
+  .footnote {
+    text-align: center;
+    font-size: 12px;
+    color: var(--text-muted);
+    margin-top: 16px;
+  }
+
+  .footnote kbd {
+    font-family: ui-monospace, monospace;
+    background: var(--btn-face);
+    border-radius: 4px;
+    padding: 1px 5px;
+    color: var(--text);
+  }
+
+  @media (max-width: 380px) {
+    .dpad { grid-template-columns: repeat(3, 30px); grid-template-rows: repeat(3, 30px); }
+    .dpad button { width: 30px; height: 30px; }
   }
 </style>
 </head>
 <body>
-  <h1>Snake</h1>
-  <div id="score">Poäng: 0</div>
-  <canvas id="board" width="400" height="400"></canvas>
-  <div id="message">Använd piltangenterna för att styra. Tryck mellanslag för att starta om.</div>
+  <div class="device">
+    <div class="brand-row">
+      <div class="brand">
+        <span class="led" id="led"></span>
+        <span class="wordmark">SNAKE</span>
+      </div>
+      <div class="score">POÄNG <b id="score">000</b></div>
+    </div>
+
+    <div class="screen-frame">
+      <div class="screen-inner">
+        <canvas id="board" width="144" height="80"></canvas>
+      </div>
+    </div>
+
+    <div class="status-line" id="status">Tryck START eller mellanslag för att börja</div>
+
+    <div class="controls">
+      <div class="dpad">
+        <button data-dir="up" aria-label="Upp">▲</button>
+        <button data-dir="left" aria-label="Vänster">◀</button>
+        <button data-dir="right" aria-label="Höger">▶</button>
+        <button data-dir="down" aria-label="Ner">▼</button>
+      </div>
+      <div class="side-controls">
+        <button class="start-btn" id="startBtn">Start</button>
+        <span class="caption">Starta om när som helst</span>
+      </div>
+    </div>
+  </div>
+
+  <div class="footnote" style="position: fixed; bottom: 14px; left: 0; right: 0;">
+    Piltangenter styr &middot; <kbd>Space</kbd> startar om
+  </div>
 
 <script>
-const canvas = document.getElementById('board');
-const ctx = canvas.getContext('2d');
-const scoreEl = document.getElementById('score');
-const messageEl = document.getElementById('message');
+(function () {
+  const canvas = document.getElementById('board');
+  const ctx = canvas.getContext('2d');
+  const scoreEl = document.getElementById('score');
+  const statusEl = document.getElementById('status');
+  const led = document.getElementById('led');
+  const startBtn = document.getElementById('startBtn');
 
-const gridSize = 20;
-const tileCount = canvas.width / gridSize;
+  const cols = 18, rows = 10;
+  const cell = canvas.width / cols;
 
-let snake, direction, nextDirection, food, score, gameOver, loopId;
-
-function init() {
-  snake = [{ x: 10, y: 10 }];
-  direction = { x: 0, y: 0 };
-  nextDirection = { x: 0, y: 0 };
-  score = 0;
-  gameOver = false;
-  placeFood();
-  updateScore();
-  messageEl.textContent = 'Använd piltangenterna för att styra. Tryck mellanslag för att starta om.';
-  if (loopId) clearInterval(loopId);
-  loopId = setInterval(tick, 120);
-}
-
-function placeFood() {
-  do {
-    food = {
-      x: Math.floor(Math.random() * tileCount),
-      y: Math.floor(Math.random() * tileCount)
-    };
-  } while (snake.some(s => s.x === food.x && s.y === food.y));
-}
-
-function updateScore() {
-  scoreEl.textContent = 'Poäng: ' + score;
-}
-
-function tick() {
-  if (gameOver) return;
-
-  direction = nextDirection;
-  if (direction.x === 0 && direction.y === 0) {
-    draw();
-    return;
+  function readColor(varName) {
+    return getComputedStyle(document.documentElement).getPropertyValue(varName).trim();
   }
 
-  const head = {
-    x: snake[0].x + direction.x,
-    y: snake[0].y + direction.y
+  let snake, direction, nextDirection, food, score, running, blink, loopId, blinkId;
+
+  function pad(n) { return n.toString().padStart(3, '0'); }
+
+  function setup() {
+    snake = [{ x: 8, y: 5 }, { x: 7, y: 5 }, { x: 6, y: 5 }];
+    direction = { x: 0, y: 0 };
+    nextDirection = { x: 0, y: 0 };
+    score = 0;
+    scoreEl.textContent = pad(score);
+    placeFood();
+  }
+
+  function reset() {
+    setup();
+    running = true;
+    statusEl.textContent = '';
+    led.classList.add('on');
+    if (loopId) clearInterval(loopId);
+    loopId = setInterval(tick, 130);
+    draw();
+  }
+
+  function placeFood() {
+    do {
+      food = { x: Math.floor(Math.random() * cols), y: Math.floor(Math.random() * rows) };
+    } while (snake.some(s => s.x === food.x && s.y === food.y));
+  }
+
+  function tick() {
+    if (!running) return;
+    direction = nextDirection;
+    if (direction.x === 0 && direction.y === 0) return;
+    const head = { x: snake[0].x + direction.x, y: snake[0].y + direction.y };
+
+    if (head.x < 0 || head.x >= cols || head.y < 0 || head.y >= rows ||
+        snake.some(s => s.x === head.x && s.y === head.y)) {
+      return endGame();
+    }
+
+    snake.unshift(head);
+    if (head.x === food.x && head.y === food.y) {
+      score++;
+      scoreEl.textContent = pad(score);
+      placeFood();
+    } else {
+      snake.pop();
+    }
+    draw();
+  }
+
+  function endGame() {
+    running = false;
+    clearInterval(loopId);
+    led.classList.remove('on');
+    statusEl.textContent = 'GAME OVER — POÄNG ' + score;
+    drawGameOver();
+  }
+
+  function drawGameOver() {
+    draw();
+    ctx.fillStyle = readColor('--ink');
+    ctx.font = '700 8px ui-monospace, monospace';
+    ctx.textAlign = 'center';
+    ctx.fillText('GAME OVER', canvas.width / 2, canvas.height / 2 - 2);
+    ctx.font = '400 6px ui-monospace, monospace';
+    ctx.fillText('TRYCK START', canvas.width / 2, canvas.height / 2 + 8);
+  }
+
+  function draw() {
+    const lcd = readColor('--lcd');
+    const inkSoft = readColor('--ink-soft');
+    const ink = readColor('--ink');
+
+    ctx.fillStyle = lcd;
+    ctx.fillRect(0, 0, canvas.width, canvas.height);
+
+    ctx.strokeStyle = inkSoft;
+    ctx.lineWidth = 1;
+    for (let x = 0; x < cols; x++) {
+      for (let y = 0; y < rows; y++) {
+        ctx.strokeRect(x * cell + 0.5, y * cell + 0.5, cell - 1, cell - 1);
+      }
+    }
+
+    ctx.fillStyle = ink;
+    if (blink) {
+      ctx.fillRect(food.x * cell + 1.5, food.y * cell + 1.5, cell - 3, cell - 3);
+    }
+
+    snake.forEach(s => {
+      ctx.fillRect(s.x * cell + 0.5, s.y * cell + 0.5, cell - 1, cell - 1);
+    });
+  }
+
+  blink = true;
+  blinkId = setInterval(() => { blink = !blink; if (running) draw(); }, 260);
+
+  function setDirection(dx, dy) {
+    if (!running) return;
+    if (dx !== 0 && direction.x === -dx) return;
+    if (dy !== 0 && direction.y === -dy) return;
+    nextDirection = { x: dx, y: dy };
+  }
+
+  const dirMap = {
+    ArrowUp: [0, -1], ArrowDown: [0, 1], ArrowLeft: [-1, 0], ArrowRight: [1, 0]
   };
 
-  // Krock med vägg
-  if (head.x < 0 || head.x >= tileCount || head.y < 0 || head.y >= tileCount) {
-    return endGame();
-  }
-
-  // Krock med sig själv
-  if (snake.some(s => s.x === head.x && s.y === head.y)) {
-    return endGame();
-  }
-
-  snake.unshift(head);
-
-  if (head.x === food.x && head.y === food.y) {
-    score++;
-    updateScore();
-    placeFood();
-  } else {
-    snake.pop();
-  }
-
-  draw();
-}
-
-function endGame() {
-  gameOver = true;
-  clearInterval(loopId);
-  messageEl.textContent = 'Game over! Poäng: ' + score + '. Tryck mellanslag för att spela igen.';
-}
-
-function draw() {
-  ctx.fillStyle = '#222';
-  ctx.fillRect(0, 0, canvas.width, canvas.height);
-
-  ctx.fillStyle = '#e63946';
-  ctx.fillRect(food.x * gridSize, food.y * gridSize, gridSize - 1, gridSize - 1);
-
-  ctx.fillStyle = '#4caf50';
-  snake.forEach((segment, i) => {
-    ctx.fillStyle = i === 0 ? '#8bc34a' : '#4caf50';
-    ctx.fillRect(segment.x * gridSize, segment.y * gridSize, gridSize - 1, gridSize - 1);
+  document.addEventListener('keydown', (e) => {
+    if (e.key === ' ') { e.preventDefault(); reset(); return; }
+    if (dirMap[e.key]) {
+      e.preventDefault();
+      setDirection(dirMap[e.key][0], dirMap[e.key][1]);
+    }
   });
-}
 
-document.addEventListener('keydown', (e) => {
-  switch (e.key) {
-    case 'ArrowUp':
-      if (direction.y !== 1) nextDirection = { x: 0, y: -1 };
-      break;
-    case 'ArrowDown':
-      if (direction.y !== -1) nextDirection = { x: 0, y: 1 };
-      break;
-    case 'ArrowLeft':
-      if (direction.x !== 1) nextDirection = { x: -1, y: 0 };
-      break;
-    case 'ArrowRight':
-      if (direction.x !== -1) nextDirection = { x: 1, y: 0 };
-      break;
-    case ' ':
-      init();
-      break;
-  }
-});
+  document.querySelectorAll('.dpad button').forEach(btn => {
+    const map = { up: [0, -1], down: [0, 1], left: [-1, 0], right: [1, 0] };
+    btn.addEventListener('click', () => {
+      const [dx, dy] = map[btn.dataset.dir];
+      setDirection(dx, dy);
+    });
+  });
 
-init();
-draw();
+  startBtn.addEventListener('click', reset);
+
+  running = false;
+  setup();
+  draw();
+})();
 </script>
 </body>
 </html>
